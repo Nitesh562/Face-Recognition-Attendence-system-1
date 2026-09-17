@@ -1,0 +1,6 @@
+attendance_id,student_id,name,roll_no,class_name,attendance_date,attendance_time,status
+1,1,Aarav Sharma,24BCA01,BCA Semester 1,2026-09-17,09:15:00,Present
+2,3,Rohan Kumar,23BCA03,BCA Semester 2,2026-09-17,09:16:30,Present
+3,5,Vikram Singh,22BCA05,BCA Semester 3,2026-09-17,09:17:15,Present
+4,7,Amit Yadav,21BCA07,BCA Semester 5,2026-09-17,09:18:40,Present
+5,9,Kunal Das,20BCA09,BCA Semester 6,2026-09-17,09:20:00,Present

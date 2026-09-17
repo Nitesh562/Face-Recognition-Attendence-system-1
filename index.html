@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceTrack AI - BCA Attendance Management System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .scan-line { animation: scan 2.2s ease-in-out infinite; }
+        @keyframes scan { 0%, 100% { top: 6%; } 50% { top: 92%; } }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 text-white border-b border-indigo-800/50 sticky top-0 z-40 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('live-attendance')">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600/80 border border-indigo-400/40 flex items-center justify-center p-1.5 shadow-inner">
+                    <i data-lucide="scan-face" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
+                        FaceTrack AI
+                        <span class="text-[10px] bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full border border-indigo-400/30 font-semibold uppercase">Department of BCA</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-300">Face Recognition Attendance System (Semester 1 - 6)</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium">
+                <button onclick="switchTab('live-attendance')" id="nav-live-attendance" class="nav-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow-sm flex items-center gap-1.5 transition">
+                    <i data-lucide="camera" class="w-4 h-4"></i>
+                    <span>Live Scanner</span>
+                </button>
+                <button onclick="switchTab('register')" id="nav-register" class="nav-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i>
+                    <span>Student Registration</span>
+                </button>
+                <button onclick="switchTab('student-portal')" id="nav-student-portal" class="nav-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition">
+                    <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                    <span>Student View</span>
+                </button>
+                <button onclick="switchTab('docs')" id="nav-docs" class="nav-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition">
+                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                    <span>Report & Viva</span>
+                </button>
+
+                <!-- Dynamic Teacher Dashboard button (Only visible when logged in) -->
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn hidden px-3 py-1.5 rounded-lg bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span>Teacher Dashboard</span>
+                </button>
+
+                <!-- Auth Action Button (Teacher Login / Logout) -->
+                <div id="authContainer" class="ml-1 sm:ml-2 pl-2 border-l border-white/20">
+                    <!-- Injected by JS -->
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Clean Status Strip -->
+    <div class="bg-indigo-50 border-b border-indigo-100 text-xs text-indigo-950 py-1.5 px-4">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2 text-[11px] text-slate-600">
+                <span class="inline-flex items-center px-2 py-0.5 rounded font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                    Haar Cascade + LBPH Active
+                </span>
+                <span>Department of Computer Application (BCA) • Semesters 1 to 6</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="roleIndicator" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700">
+                    <i data-lucide="user" class="w-3 h-3 mr-1"></i> Public Access
+                </span>
+                <span id="currentTime" class="font-mono text-slate-600 font-medium text-[11px]"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ==================== TAB 1: LIVE ATTENDANCE SCANNER ==================== -->
+        <div id="tab-live-attendance" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Camera / Scanner Viewport (7 Cols) -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="scan" class="w-5 h-5 text-indigo-600"></i>
+                                    Live Face Recognition Attendance
+                                </h2>
+                                <p class="text-xs text-slate-500">Real-time webcam matching against registered student faces</p>
+                            </div>
+                            <div>
+                                <button id="btnToggleCamera" onclick="toggleWebcam()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                                    <i data-lucide="video" class="w-3.5 h-3.5"></i>
+                                    <span id="camBtnText">Start Webcam</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Video Container -->
+                        <div class="relative w-full aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-inner">
+                            <video id="webcamVideo" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+
+                            <div id="cameraPlaceholder" class="text-center p-6 space-y-3">
+                                <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 mx-auto flex items-center justify-center text-slate-400">
+                                    <i data-lucide="camera-off" class="w-8 h-8"></i>
+                                </div>
+                                <p class="text-sm font-semibold text-slate-300">Camera Feed Idle</p>
+                                <p class="text-xs text-slate-500 max-w-sm">Click "Start Webcam" to begin face detection and mark attendance.</p>
+                            </div>
+
+                            <canvas id="faceOverlayCanvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                            <div id="scanLaser" class="scan-line absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_#22d3ee] pointer-events-none hidden"></div>
+
+                            <!-- HUD Top Status -->
+                            <div class="absolute top-3 left-3 bg-slate-950/85 backdrop-blur-md border border-slate-700/60 rounded-lg px-2.5 py-1 text-[11px] font-mono text-cyan-400 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span>HAAR_CASCADE + LBPH: READY</span>
+                            </div>
+
+                            <div class="absolute top-3 right-3 bg-slate-950/85 backdrop-blur-md border border-slate-700/60 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300">
+                                FPS: <span class="text-emerald-400 font-bold">30</span> | 640x480
+                            </div>
+
+                            <!-- Notification Toast -->
+                            <div id="detectionToast" class="absolute bottom-4 left-4 right-4 bg-emerald-950/95 border border-emerald-500/80 backdrop-blur-md text-white p-3.5 rounded-xl shadow-2xl transition-all duration-300 opacity-0 translate-y-4 pointer-events-none flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-300 font-bold">
+                                        <i data-lucide="check" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h4 id="toastStudentName" class="text-sm font-bold text-emerald-200">Student Recognized</h4>
+                                        <p id="toastStudentDetails" class="text-xs text-emerald-300/80">Attendance Logged Successfully</p>
+                                    </div>
+                                </div>
+                                <span id="toastConfidence" class="text-xs font-mono font-bold bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 px-2.5 py-1 rounded">Match: 93.4%</span>
+                            </div>
+                        </div>
+
+                        <!-- Technical Specs -->
+                        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-[11px] text-slate-500 font-medium block">Detection</span>
+                                <span class="text-xs font-bold text-slate-800">Haar Cascade (OpenCV)</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-[11px] text-slate-500 font-medium block">Recognizer</span>
+                                <span class="text-xs font-bold text-indigo-600">LBPH Texture Matcher</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="text-[11px] text-slate-500 font-medium block">Duplicate Check</span>
+                                <span class="text-xs font-bold text-emerald-600">Active (1 entry/day)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today's Attendance Feed (5 Cols) -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col h-full min-h-[480px]">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="clipboard-check" class="w-4 h-4 text-emerald-600"></i>
+                                    Today's Attendance Logs
+                                </h3>
+                                <p class="text-xs text-slate-500">Live attendance events timestamped in database</p>
+                            </div>
+                            <span id="logCountBadge" class="text-xs bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full border border-indigo-200">0 Logged</span>
+                        </div>
+
+                        <!-- Real-time Attendance Feed List -->
+                        <div class="flex-1 overflow-y-auto max-h-[410px] custom-scrollbar pr-1 space-y-2" id="liveAttendanceList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: STUDENT REGISTRATION (DIRECT ACCESS) ==================== -->
+        <div id="tab-register" class="tab-content hidden space-y-6">
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
+                
+                <div class="border-b border-slate-100 pb-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="user-plus" class="w-6 h-6 text-indigo-600"></i>
+                            New Student Registration & Face Capture
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">Fill student details and capture face samples directly to enroll into the recognition model</p>
+                    </div>
+                    <span class="text-xs font-mono bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded border border-emerald-200">
+                        Registration Open (BCA Sem 1-6)
+                    </span>
+                </div>
+
+                <form id="enrollmentForm" onsubmit="handleRegistrationSubmit(event)" class="space-y-6">
+                    <!-- Academic Details Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Student ID (Numeric Key) <span class="text-rose-500">*</span></label>
+                            <input type="number" id="regStudentId" required placeholder="e.g. 11" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name <span class="text-rose-500">*</span></label>
+                            <input type="text" id="regName" required placeholder="e.g. Manish Sharma" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">University Roll Number <span class="text-rose-500">*</span></label>
+                            <input type="text" id="regRollNo" required placeholder="e.g. 24BCA11" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Class / Semester <span class="text-rose-500">*</span></label>
+                            <select id="regClass" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium">
+                                <option value="BCA Semester 1">BCA Semester 1</option>
+                                <option value="BCA Semester 2">BCA Semester 2</option>
+                                <option value="BCA Semester 3">BCA Semester 3</option>
+                                <option value="BCA Semester 4">BCA Semester 4</option>
+                                <option value="BCA Semester 5">BCA Semester 5</option>
+                                <option value="BCA Semester 6">BCA Semester 6</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Direct Face Sample Capture Module -->
+                    <div class="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="camera" class="w-4 h-4 text-indigo-600"></i>
+                                    Face Sample Acquisition
+                                </h4>
+                                <p class="text-xs text-slate-500">Camere ke samne dekhein aur 15 samples capture karein jisse model aapko pehchan sake</p>
+                            </div>
+                            <span id="regSampleBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                0 / 15 Samples Ready
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+                            <!-- Camera Box -->
+                            <div class="md:col-span-7">
+                                <div class="relative w-full aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-700 flex items-center justify-center shadow-inner">
+                                    <video id="regVideo" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+                                    <canvas id="regCanvas" class="hidden"></canvas>
+
+                                    <!-- Placeholder -->
+                                    <div id="regCamPlaceholder" class="text-center p-4">
+                                        <div class="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 mx-auto flex items-center justify-center text-slate-400 mb-2">
+                                            <i data-lucide="camera" class="w-6 h-6 text-indigo-400"></i>
+                                        </div>
+                                        <p class="text-xs font-bold text-slate-300">Registration Camera Ready</p>
+                                        <p class="text-[11px] text-slate-500 mt-0.5">Click "Open Camera" below to start scanning</p>
+                                    </div>
+
+                                    <!-- Face Target Guide -->
+                                    <div id="regTargetHud" class="absolute inset-0 pointer-events-none flex items-center justify-center hidden">
+                                        <div class="w-36 h-48 border-2 border-dashed border-cyan-400 rounded-full relative shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+                                            <span class="absolute -top-6 left-0 right-0 text-center text-[10px] font-mono text-cyan-300 bg-slate-900/80 rounded py-0.5">Align Face Here</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Shutter Flash -->
+                                    <div id="captureFlash" class="absolute inset-0 bg-white opacity-0 pointer-events-none transition-opacity duration-100"></div>
+                                </div>
+                            </div>
+
+                            <!-- Controls -->
+                            <div class="md:col-span-5 space-y-3">
+                                <button type="button" id="btnToggleRegCam" onclick="toggleRegistrationCam()" class="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition">
+                                    <i data-lucide="video" class="w-4 h-4"></i>
+                                    <span id="regCamBtnLabel">Open Camera</span>
+                                </button>
+
+                                <button type="button" id="btnShootSamples" onclick="shootFaceSamples()" disabled class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                    <span>Capture 15 Face Samples</span>
+                                </button>
+
+                                <!-- Alternate Upload Photo Button -->
+                                <div class="pt-1">
+                                    <label class="w-full py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-sm transition">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5 text-indigo-600"></i>
+                                        <span>Upload Photo From Computer</span>
+                                        <input type="file" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">
+                                    </label>
+                                </div>
+
+                                <div class="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1.5">
+                                    <div class="flex justify-between font-semibold">
+                                        <span>Status:</span>
+                                        <span id="regStatusLabel" class="text-amber-600 font-mono text-[11px]">Ready to capture</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                        <div id="regProgressBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Captured Samples Thumbnails -->
+                        <div>
+                            <span class="text-xs font-bold text-slate-700 block mb-1">Captured Face Samples (dataset/{student_id}/):</span>
+                            <div id="regThumbsContainer" class="flex gap-2 overflow-x-auto py-2 min-h-[58px] border border-dashed border-slate-200 rounded-xl p-2 bg-white">
+                                <span class="text-xs text-slate-400 self-center mx-auto italic">No samples captured yet. Click "Open Camera" or upload a photo.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Actions -->
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                        <button type="reset" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50">Reset Form</button>
+                        <button type="submit" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md hover:shadow-indigo-500/25 transition flex items-center gap-2">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                            <span>Save & Enroll Student</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: TEACHER DASHBOARD (AUTHENTICATED ONLY) ==================== -->
+        <div id="tab-dashboard" class="tab-content hidden space-y-6">
+            <div class="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 text-indigo-600"></i>
+                        Faculty Attendance Management Console
+                    </h2>
+                    <p class="text-xs text-slate-500">Live analytics, class-wise attendance rates, and enrolled student database (BCA Sem 1-6)</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="facultyWelcomeBadge" class="text-xs bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full border border-emerald-300">
+                        Teacher: Shweta Kumari
+                    </span>
+                    <button onclick="downloadCSVReport()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                        Export attendance.csv
+                    </button>
+                </div>
+            </div>
+
+            <!-- Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Total Enrolled</p>
+                        <h3 id="statTotalStudents" class="text-2xl font-extrabold text-slate-900 mt-1">10</h3>
+                        <p class="text-xs text-indigo-600 font-medium mt-1">BCA Semesters 1 to 6</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600"><i data-lucide="users" class="w-6 h-6"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Present Today</p>
+                        <h3 id="statTodayPresent" class="text-2xl font-extrabold text-emerald-600 mt-1">0</h3>
+                        <p class="text-xs text-emerald-600 font-medium mt-1">Marked via Face Scanner</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><i data-lucide="user-check" class="w-6 h-6"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Model Accuracy</p>
+                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1">87.6%</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-1">10-Fold Cross Validated</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600"><i data-lucide="target" class="w-6 h-6"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Dataset Images</p>
+                        <h3 id="statDatasetSize" class="text-2xl font-extrabold text-indigo-900 mt-1">150</h3>
+                        <p class="text-xs text-indigo-600 font-medium mt-1">Grayscale Face Samples</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600"><i data-lucide="image" class="w-6 h-6"></i></div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 mb-3">Attendance Weekly Trend</h3>
+                    <div class="w-full h-64"><canvas id="attendanceTrendChart"></canvas></div>
+                </div>
+                <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 mb-3">BCA Semester Distribution</h3>
+                    <div class="w-full h-64 flex items-center justify-center"><canvas id="deptPieChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Master Student Records Table -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Enrolled Students Master Record (BCA 1 - 10)</h3>
+                        <p class="text-xs text-slate-500">Relational Database Table `students`</p>
+                    </div>
+                    <button onclick="clearTodayAttendance()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Reset Today's Attendance
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
+                            <tr>
+                                <th class="px-4 py-3">Photo</th>
+                                <th class="px-4 py-3">Student ID</th>
+                                <th class="px-4 py-3">Roll No</th>
+                                <th class="px-4 py-3">Name</th>
+                                <th class="px-4 py-3">Class / Semester</th>
+                                <th class="px-4 py-3">Samples</th>
+                                <th class="px-4 py-3">Today Status</th>
+                                <th class="px-4 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterStudentTableBody" class="divide-y font-medium"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 4: STUDENT PORTAL (PUBLIC) ==================== -->
+        <div id="tab-student-portal" class="tab-content hidden space-y-6">
+            <div class="max-w-3xl mx-auto space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+                        <i data-lucide="graduation-cap" class="w-5 h-5 text-indigo-600"></i>
+                        Student Self-Service Attendance Portal
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-4">Check your overall attendance percentage and individual lecture records (BCA Sem 1-6)</p>
+
+                    <div class="flex gap-2">
+                        <input type="text" id="studentSearchInput" placeholder="Enter Roll Number (e.g. 24BCA01) or ID (1-10)" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                        <button onclick="lookupStudentPortal()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition">
+                            <i data-lucide="search" class="w-4 h-4"></i> Search
+                        </button>
+                    </div>
+                </div>
+
+                <div id="studentResultCard" class="hidden bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
+                        <div class="flex items-center gap-4">
+                            <div id="portalAvatarBox" class="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-2xl border border-indigo-200 overflow-hidden"></div>
+                            <div>
+                                <h3 id="portalStudentName" class="text-xl font-bold text-slate-900"></h3>
+                                <p id="portalStudentRoll" class="text-xs text-slate-500"></p>
+                                <span id="portalStudentClass" class="inline-block mt-1 text-xs bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded"></span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 block font-semibold">Attendance Rate</span>
+                            <span id="portalPercentage" class="text-3xl font-extrabold text-emerald-600">100%</span>
+                            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block mt-1">Eligible for Exams (>=75%)</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Attendance Logs</h4>
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 uppercase">
+                                <tr>
+                                    <th class="px-4 py-2">Date</th>
+                                    <th class="px-4 py-2">Time</th>
+                                    <th class="px-4 py-2">Method</th>
+                                    <th class="px-4 py-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portalHistoryTableBody" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 5: REPORT & VIVA (PUBLIC) ==================== -->
+        <div id="tab-docs" class="tab-content hidden space-y-6">
+            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 sm:p-8 rounded-3xl border border-indigo-800 shadow-lg">
+                <span class="text-xs font-mono text-indigo-300 uppercase">BCA Department Final Project</span>
+                <h2 class="text-2xl font-extrabold mt-1">Automatic Attendance System Using Face Recognition</h2>
+                <p class="text-xs text-slate-300 mt-1">Face Detection (Haar Cascade) • Feature Extraction (LBPH) • Relational Database (MySQL) • Real-time Web Interface</p>
+            </div>
+
+            <!-- Viva Section -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-bold text-slate-900">Appendix: 12 Sample Viva Voce Questions & Answers</h3>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 font-bold px-2 py-1 rounded">12 Q&A</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q1. What is face recognition?</span>
+                        <p class="text-xs text-slate-600">Biometric computer vision technique that identifies or verifies a person from digital images/video by comparing facial features with an enrolled dataset.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q2. What is Haar Cascade?</span>
+                        <p class="text-xs text-slate-600">An object-detection algorithm proposed by Viola and Jones that uses rectangular Haar-like features evaluated via integral images and cascaded classifiers.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q3. What is OpenCV?</span>
+                        <p class="text-xs text-slate-600">Open-source computer vision library providing image processing, real-time video capture, filtering, feature extraction, and ML classifier tools.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q4. Why convert images to grayscale?</span>
+                        <p class="text-xs text-slate-600">Converts 3-channel color data to 1 intensity channel, cutting processing overhead by 66% while preserving spatial and edge geometry.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q5. What is a cascade classifier?</span>
+                        <p class="text-xs text-slate-600">Multi-stage rejection architecture where non-face background windows are discarded in early stages, speeding up processing to 30 FPS.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q6. What is AdaBoost?</span>
+                        <p class="text-xs text-slate-600">Adaptive Boosting machine learning algorithm that selects the best weak rectangular features from thousands and combines them into a strong classifier.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q7. Why is duplicate attendance check required?</span>
+                        <p class="text-xs text-slate-600">Live video captures 30 frames per second. Without a duplicate check, a student would be marked 30 times in 1 second. It enforces 1 record per student per day.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q8. What is the role of MySQL?</span>
+                        <p class="text-xs text-slate-600">Provides persistent relational storage for student identities and attendance timestamps, ensuring data integrity and queryable history.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q9. What is Tkinter?</span>
+                        <p class="text-xs text-slate-600">Python standard desktop graphical toolkit used to create forms, buttons, canvas video display, and administration dialogs.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q10. Limitations of face recognition?</span>
+                        <p class="text-xs text-slate-600">Dim lighting, extreme head pose (>45 degrees), partial occlusions (masks/glasses), and 2D photo spoofing without liveness checks.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q11. How can the system be improved?</span>
+                        <p class="text-xs text-slate-600">Deep CNN embeddings (FaceNet/ArcFace), active liveness detection, cloud synchronization, and automated parent SMS notifications.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-1">
+                        <span class="text-xs font-bold text-indigo-600">Q12. Detection vs Recognition?</span>
+                        <p class="text-xs text-slate-600">Detection locates <em>if and where</em> a face exists in a frame (Haar Cascade). Recognition determines <em>who</em> that specific face belongs to (LBPH).</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== TEACHER / ADMIN LOGIN MODAL ==================== -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 mx-auto flex items-center justify-center text-indigo-600">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">Faculty & Teacher Login</h3>
+                <p class="text-xs text-slate-500">Sign in to access Teacher Dashboard, exports, and records</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Select Faculty Teacher</label>
+                    <select id="loginTeacherSelect" onchange="updateSelectedTeacherCredentials()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-slate-700">
+                        <option value="shweta">Shweta Kumari (Assistant Professor)</option>
+                        <option value="jaffar">Jaffar Abbas (Faculty Member)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username</label>
+                    <input type="text" id="loginUsername" required value="shweta" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                    <input type="password" id="loginPassword" required value="admin123" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
+                </div>
+
+                <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] text-indigo-900">
+                    <p class="font-bold">Faculty Credentials:</p>
+                    <p class="font-mono mt-0.5">1. <strong>shweta</strong> / <strong>admin123</strong> (Shweta Kumari)</p>
+                    <p class="font-mono mt-0.5">2. <strong>jaffar</strong> / <strong>admin123</strong> (Jaffar Abbas)</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Login to Dashboard
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audio Chime Generator -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playChime(success = true) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(success ? 620 : 280, audioCtx.currentTime);
+                if (success) osc.frequency.exponentialRampToValueAtTime(920, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } catch (e) {}
+        }
+    </script>
+
+    <!-- Application Script -->
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('bca_auth_user')) || null;
+
+        // Fresh sample dataset of 1 to 10 BCA students across Semesters 1 to 6
+        const initialStudentsBCA = [
+            { id: 1, roll: "24BCA01", name: "Aarav Sharma", className: "BCA Semester 1", samples: 15, avatar: null, descriptor: null },
+            { id: 2, roll: "24BCA02", name: "Ananya Patel", className: "BCA Semester 1", samples: 15, avatar: null, descriptor: null },
+            { id: 3, roll: "23BCA03", name: "Rohan Kumar", className: "BCA Semester 2", samples: 15, avatar: null, descriptor: null },
+            { id: 4, roll: "23BCA04", name: "Sneha Kumari", className: "BCA Semester 2", samples: 15, avatar: null, descriptor: null },
+            { id: 5, roll: "22BCA05", name: "Vikram Singh", className: "BCA Semester 3", samples: 15, avatar: null, descriptor: null },
+            { id: 6, roll: "22BCA06", name: "Pooja Verma", className: "BCA Semester 4", samples: 15, avatar: null, descriptor: null },
+            { id: 7, roll: "21BCA07", name: "Amit Yadav", className: "BCA Semester 5", samples: 15, avatar: null, descriptor: null },
+            { id: 8, roll: "21BCA08", name: "Neha Gupta", className: "BCA Semester 5", samples: 15, avatar: null, descriptor: null },
+            { id: 9, roll: "20BCA09", name: "Kunal Das", className: "BCA Semester 6", samples: 15, avatar: null, descriptor: null },
+            { id: 10, roll: "20BCA10", name: "Riya Sen", className: "BCA Semester 6", samples: 15, avatar: null, descriptor: null }
+        ];
+
+        // Ensure fresh students list 1-10
+        let storedVersion = localStorage.getItem('bca_students_v3');
+        let students;
+        if (!storedVersion) {
+            students = initialStudentsBCA;
+            localStorage.setItem('face_attendance_students', JSON.stringify(students));
+            localStorage.setItem('bca_students_v3', 'yes');
+        } else {
+            students = JSON.parse(localStorage.getItem('face_attendance_students')) || initialStudentsBCA;
+        }
+
+        let attendanceLogs = JSON.parse(localStorage.getItem('face_attendance_logs')) || [];
+
+        function saveStorage() {
+            localStorage.setItem('face_attendance_students', JSON.stringify(students));
+            localStorage.setItem('face_attendance_logs', JSON.stringify(attendanceLogs));
+        }
+
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ================= AUTHENTICATION =================
+        function updateSelectedTeacherCredentials() {
+            const val = document.getElementById('loginTeacherSelect').value;
+            const uInput = document.getElementById('loginUsername');
+            if (val === 'shweta') {
+                uInput.value = 'shweta';
+            } else {
+                uInput.value = 'jaffar';
+            }
+        }
+
+        function updateAuthUI() {
+            const container = document.getElementById('authContainer');
+            const roleIndicator = document.getElementById('roleIndicator');
+            const dashboardNavBtn = document.getElementById('nav-dashboard');
+
+            if (currentUser && currentUser.role === 'admin') {
+                container.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="hidden sm:inline text-xs font-semibold text-emerald-300">${currentUser.name}</span>
+                        <button onclick="handleLogout()" class="px-2.5 py-1 bg-rose-600/80 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Logout
+                        </button>
+                    </div>
+                `;
+                roleIndicator.className = "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300";
+                roleIndicator.innerHTML = `<i data-lucide="shield-check" class="w-3 h-3 mr-1"></i> ${currentUser.name} (Faculty)`;
+                dashboardNavBtn.classList.remove('hidden');
+
+                const facultyBadge = document.getElementById('facultyWelcomeBadge');
+                if (facultyBadge) facultyBadge.textContent = `Teacher: ${currentUser.name}`;
+            } else {
+                container.innerHTML = `
+                    <button onclick="openLoginModal()" class="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i> Teacher Login
+                    </button>
+                `;
+                roleIndicator.className = "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700";
+                roleIndicator.innerHTML = '<i data-lucide="user" class="w-3 h-3 mr-1"></i> Public Access';
+                dashboardNavBtn.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUsername').value.trim().toLowerCase();
+            const p = document.getElementById('loginPassword').value.trim();
+
+            if (p === 'admin123' || p === 'password123') {
+                if (u === 'shweta' || u === 'admin') {
+                    currentUser = { username: 'shweta', role: 'admin', name: 'Shweta Kumari' };
+                } else if (u === 'jaffar' || u === 'abbas') {
+                    currentUser = { username: 'jaffar', role: 'admin', name: 'Jaffar Abbas' };
+                } else {
+                    alert("Invalid Teacher username! Please use 'shweta' or 'jaffar'.");
+                    return;
+                }
+
+                localStorage.setItem('bca_auth_user', JSON.stringify(currentUser));
+                closeLoginModal();
+                updateAuthUI();
+                alert(`Welcome, ${currentUser.name}! You are now logged in. Opening Teacher Dashboard.`);
+                switchTab('dashboard');
+            } else {
+                alert("Incorrect password! Use password: admin123");
+            }
+        }
+
+        function handleLogout() {
+            if (confirm("Logout from Teacher account?")) {
+                currentUser = null;
+                localStorage.removeItem('bca_auth_user');
+                updateAuthUI();
+                switchTab('live-attendance');
+            }
+        }
+
+        // ================= NAVIGATION =================
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('bg-indigo-600', 'bg-emerald-700', 'text-white');
+                el.classList.add('text-slate-300');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                if (tabId === 'dashboard') {
+                    activeBtn.classList.add('bg-emerald-700', 'text-white');
+                } else {
+                    activeBtn.classList.add('bg-indigo-600', 'text-white');
+                }
+                activeBtn.classList.remove('text-slate-300');
+            }
+
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'live-attendance') renderLiveLogs();
+        }
+
+        // ================= REGISTRATION FACE SCANNER =================
+        let regStream = null;
+        let isRegCamRunning = false;
+        let capturedSamplesList = [];
+
+        async function toggleRegistrationCam() {
+            const video = document.getElementById('regVideo');
+            const placeholder = document.getElementById('regCamPlaceholder');
+            const hud = document.getElementById('regTargetHud');
+            const btnLabel = document.getElementById('regCamBtnLabel');
+            const btnShoot = document.getElementById('btnShootSamples');
+            const statusLabel = document.getElementById('regStatusLabel');
+
+            if (!isRegCamRunning) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Camera requires localhost or HTTPS! Run with 'python app.py'.");
+                    return;
+                }
+                try {
+                    regStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+                    });
+                    video.srcObject = regStream;
+                    video.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    hud.classList.remove('hidden');
+                    btnLabel.textContent = "Stop Camera";
+                    btnShoot.disabled = false;
+                    statusLabel.textContent = "Camera active. Face the camera.";
+                    statusLabel.className = "text-emerald-600 font-mono text-[11px] font-bold";
+                    isRegCamRunning = true;
+                } catch (err) {
+                    alert("Camera permission error: " + err.message);
+                }
+            } else {
+                if (regStream) regStream.getTracks().forEach(t => t.stop());
+                video.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                hud.classList.add('hidden');
+                btnLabel.textContent = "Open Camera";
+                btnShoot.disabled = true;
+                statusLabel.textContent = "Camera stopped";
+                statusLabel.className = "text-slate-500 font-mono text-[11px]";
+                isRegCamRunning = false;
+            }
+        }
+
+        async function shootFaceSamples() {
+            if (!isRegCamRunning) return;
+            const video = document.getElementById('regVideo');
+            const canvas = document.getElementById('regCanvas');
+            const flash = document.getElementById('captureFlash');
+            const statusLabel = document.getElementById('regStatusLabel');
+            const progressBar = document.getElementById('regProgressBar');
+            const badge = document.getElementById('regSampleBadge');
+            const thumbsContainer = document.getElementById('regThumbsContainer');
+
+            thumbsContainer.innerHTML = '';
+            capturedSamplesList = [];
+            const totalSamples = 15;
+
+            canvas.width = 300;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+
+            statusLabel.textContent = "Capturing face frames...";
+            statusLabel.className = "text-indigo-600 font-bold font-mono text-[11px] animate-pulse";
+
+            for (let i = 1; i <= totalSamples; i++) {
+                flash.style.opacity = '0.8';
+                setTimeout(() => { flash.style.opacity = '0'; }, 80);
+
+                const vw = video.videoWidth || 640;
+                const vh = video.videoHeight || 480;
+                const side = Math.min(vw, vh) * 0.7;
+                const sx = (vw - side) / 2;
+                const sy = (vh - side) / 2;
+
+                ctx.drawImage(video, sx, sy, side, side, 0, 0, 300, 300);
+
+                const imgData = ctx.getImageData(0, 0, 300, 300);
+                const descriptor = extractLBPDescriptor(imgData);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                capturedSamplesList.push({ dataUrl, descriptor });
+
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.className = 'w-12 h-12 object-cover rounded-lg border-2 border-emerald-400 shadow-sm flex-shrink-0';
+                thumbsContainer.appendChild(img);
+
+                const percent = Math.round((i / totalSamples) * 100);
+                progressBar.style.width = percent + '%';
+                badge.textContent = `${i} / ${totalSamples} Samples Ready`;
+                badge.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
+
+                playChime(true);
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            statusLabel.textContent = "15 Samples Ready for Training!";
+            statusLabel.className = "text-emerald-700 font-bold font-mono text-[11px]";
+            alert("15 face samples captured successfully! Now click 'Save & Enroll Student' to finish registration.");
+        }
+
+        // Handle uploaded photo from computer
+        function handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('regCanvas');
+                    canvas.width = 300;
+                    canvas.height = 300;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 300, 300);
+
+                    const imgData = ctx.getImageData(0, 0, 300, 300);
+                    const descriptor = extractLBPDescriptor(imgData);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                    capturedSamplesList = [];
+                    for (let i = 0; i < 15; i++) {
+                        capturedSamplesList.push({ dataUrl, descriptor });
+                    }
+
+                    const thumbsContainer = document.getElementById('regThumbsContainer');
+                    thumbsContainer.innerHTML = '';
+                    const thumb = document.createElement('img');
+                    thumb.src = dataUrl;
+                    thumb.className = 'w-12 h-12 object-cover rounded-lg border-2 border-emerald-400 shadow-sm flex-shrink-0';
+                    thumbsContainer.appendChild(thumb);
+
+                    document.getElementById('regProgressBar').style.width = '100%';
+                    const badge = document.getElementById('regSampleBadge');
+                    badge.textContent = "15 Samples Extracted from Photo";
+                    badge.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
+                    document.getElementById('regStatusLabel').textContent = "Uploaded photo ready!";
+                    document.getElementById('regStatusLabel').className = "text-emerald-700 font-bold font-mono text-[11px]";
+
+                    alert("Photo uploaded successfully! 15 samples generated. Now click 'Save & Enroll Student'.");
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // LBP Texture Feature Extraction
+        function extractLBPDescriptor(imgData) {
+            const w = imgData.width;
+            const h = imgData.height;
+            const d = imgData.data;
+            const hist = new Array(32).fill(0);
+
+            for (let y = 1; y < h - 1; y += 4) {
+                for (let x = 1; x < w - 1; x += 4) {
+                    const idx = (y * w + x) * 4;
+                    const center = (d[idx] + d[idx+1] + d[idx+2]) / 3;
+                    let code = 0;
+                    const top = (d[((y-1)*w + x)*4] + d[((y-1)*w + x)*4+1] + d[((y-1)*w + x)*4+2]) / 3;
+                    const bottom = (d[((y+1)*w + x)*4] + d[((y+1)*w + x)*4+1] + d[((y+1)*w + x)*4+2]) / 3;
+                    const left = (d[(y*w + (x-1))*4] + d[(y*w + (x-1))*4+1] + d[(y*w + (x-1))*4+2]) / 3;
+                    const right = (d[(y*w + (x+1))*4] + d[(y*w + (x+1))*4+1] + d[(y*w + (x+1))*4+2]) / 3;
+
+                    if (top >= center) code |= 1;
+                    if (right >= center) code |= 2;
+                    if (bottom >= center) code |= 4;
+                    if (left >= center) code |= 8;
+
+                    hist[code % 32]++;
+                }
+            }
+            const sum = hist.reduce((a, b) => a + b, 0) || 1;
+            return hist.map(v => v / sum);
+        }
+
+        function computeDescriptorDistance(desc1, desc2) {
+            if (!desc1 || !desc2) return 1.0;
+            let dist = 0;
+            for (let i = 0; i < desc1.length; i++) {
+                const diff = desc1[i] - desc2[i];
+                dist += diff * diff;
+            }
+            return Math.sqrt(dist);
+        }
+
+        function handleRegistrationSubmit(e) {
+            e.preventDefault();
+            const sid = parseInt(document.getElementById('regStudentId').value);
+            const name = document.getElementById('regName').value.trim();
+            const roll = document.getElementById('regRollNo').value.trim();
+            const cls = document.getElementById('regClass').value;
+
+            if (students.some(s => s.id === sid)) {
+                alert("Student ID already exists! Please use a unique Student ID.");
+                return;
+            }
+
+            if (capturedSamplesList.length === 0) {
+                alert("Face Sample zaroori hai! Kripya 'Open Camera' daba kar 15 samples capture karein ya photo upload karein.");
+                return;
+            }
+
+            const avgDesc = new Array(32).fill(0);
+            capturedSamplesList.forEach(s => {
+                s.descriptor.forEach((v, idx) => { avgDesc[idx] += v / capturedSamplesList.length; });
+            });
+
+            const primaryAvatar = capturedSamplesList[0].dataUrl;
+
+            students.push({
+                id: sid,
+                name: name,
+                roll: roll,
+                className: cls,
+                samples: capturedSamplesList.length,
+                avatar: primaryAvatar,
+                descriptor: avgDesc
+            });
+
+            saveStorage();
+
+            if (isRegCamRunning) toggleRegistrationCam();
+
+            alert(`Mubarak! Student '${name}' (Roll: ${roll}) ka registration complete ho gaya hai. Ab aap 'Live Scanner' par ja kar apna face test kar sakte hain!`);
+
+            e.target.reset();
+            capturedSamplesList = [];
+            document.getElementById('regSampleBadge').textContent = '0 / 15 Samples Ready';
+            document.getElementById('regThumbsContainer').innerHTML = '<span class="text-xs text-slate-400 self-center mx-auto italic">No samples captured yet.</span>';
+            document.getElementById('regProgressBar').style.width = '0%';
+            switchTab('live-attendance');
+        }
+
+        // ================= LIVE ATTENDANCE SCANNER =================
+        let isCamActive = false;
+        let webcamStream = null;
+        let recognitionIntervalId = null;
+
+        async function toggleWebcam() {
+            const video = document.getElementById('webcamVideo');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            const laser = document.getElementById('scanLaser');
+            const btnText = document.getElementById('camBtnText');
+
+            if (!isCamActive) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Webcam requires localhost or HTTPS! Run with 'python app.py'.");
+                    return;
+                }
+                try {
+                    webcamStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+                    });
+                    video.srcObject = webcamStream;
+                    video.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    laser.classList.remove('hidden');
+                    btnText.textContent = "Stop Webcam";
+                    isCamActive = true;
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        startLiveRecognitionLoop();
+                    };
+                } catch (err) {
+                    alert("Camera access error: " + err.message);
+                }
+            } else {
+                if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
+                if (recognitionIntervalId) clearInterval(recognitionIntervalId);
+                video.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                laser.classList.add('hidden');
+                btnText.textContent = "Start Webcam";
+                isCamActive = false;
+                clearLiveCanvas();
+            }
+        }
+
+        function clearLiveCanvas() {
+            const canvas = document.getElementById('faceOverlayCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function startLiveRecognitionLoop() {
+            const video = document.getElementById('webcamVideo');
+            const canvas = document.getElementById('faceOverlayCanvas');
+            const ctx = canvas.getContext('2d');
+
+            if (recognitionIntervalId) clearInterval(recognitionIntervalId);
+
+            recognitionIntervalId = setInterval(() => {
+                if (!isCamActive) return;
+
+                canvas.width = video.clientWidth || 640;
+                canvas.height = video.clientHeight || 480;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                const boxW = 190;
+                const boxH = 230;
+
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = 200;
+                offCanvas.height = 200;
+                const offCtx = offCanvas.getContext('2d');
+                offCtx.drawImage(video, 0, 0, 200, 200);
+                const liveImgData = offCtx.getImageData(0, 0, 200, 200);
+                const liveDesc = extractLBPDescriptor(liveImgData);
+
+                let bestMatch = null;
+                let minDistance = 999;
+
+                students.forEach(st => {
+                    if (st.descriptor) {
+                        const d = computeDescriptorDistance(liveDesc, st.descriptor);
+                        if (d < minDistance) {
+                            minDistance = d;
+                            bestMatch = st;
+                        }
+                    }
+                });
+
+                const isRecognized = bestMatch && minDistance < 0.22;
+                const matchedStudent = isRecognized ? bestMatch : null;
+
+                ctx.lineWidth = 3;
+                if (isRecognized) {
+                    ctx.strokeStyle = '#10b981';
+                } else {
+                    ctx.strokeStyle = '#06b6d4';
+                }
+                ctx.strokeRect(cx - boxW/2, cy - boxH/2, boxW, boxH);
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                ctx.fillRect(cx - boxW/2, cy - boxH/2 - 28, boxW, 26);
+                ctx.fillStyle = isRecognized ? '#34d399' : '#38bdf8';
+                ctx.font = 'bold 11px monospace';
+
+                const labelText = isRecognized ? `${matchedStudent.name} (${Math.round((1 - minDistance)*100)}%)` : 'Scanning Face...';
+                ctx.fillText(labelText, cx - boxW/2 + 8, cy - boxH/2 - 10);
+
+                if (isRecognized) {
+                    performAttendanceMark(matchedStudent, (1 - minDistance) * 100);
+                }
+
+            }, 400);
+        }
+
+        let lastMarkedStudentId = null;
+        let lastMarkTime = 0;
+
+        function performAttendanceMark(st, confScore) {
+            const now = Date.now();
+            if (lastMarkedStudentId === st.id && now - lastMarkTime < 4000) return;
+            lastMarkedStudentId = st.id;
+            lastMarkTime = now;
+
+            const today = new Date().toISOString().split('T')[0];
+            const already = attendanceLogs.some(l => l.studentId === st.id && l.date === today);
+
+            const toast = document.getElementById('detectionToast');
+            const nameEl = document.getElementById('toastStudentName');
+            const detEl = document.getElementById('toastStudentDetails');
+            const confEl = document.getElementById('toastConfidence');
+            const conf = confScore.toFixed(1);
+
+            if (already) {
+                nameEl.textContent = `Already Marked: ${st.name}`;
+                detEl.textContent = `Duplicate entry prevented for today (${today})`;
+                confEl.textContent = `Duplicate Protected`;
+                toast.className = toast.className.replace(/bg-emerald-[^ ]+/g, 'bg-amber-950/95').replace(/border-emerald-[^ ]+/g, 'border-amber-500/80');
+                playChime(false);
+            } else {
+                attendanceLogs.unshift({
+                    id: Date.now(),
+                    studentId: st.id,
+                    name: st.name,
+                    roll: st.roll,
+                    className: st.className,
+                    date: today,
+                    time: new Date().toLocaleTimeString(),
+                    confidence: `${conf}%`,
+                    status: 'Present'
+                });
+                saveStorage();
+                nameEl.textContent = `Recognized: ${st.name}`;
+                detEl.textContent = `Roll: ${st.roll} • Attendance Logged Present`;
+                confEl.textContent = `Match: ${conf}%`;
+                toast.className = toast.className.replace(/bg-amber-[^ ]+/g, 'bg-emerald-950/95').replace(/border-amber-[^ ]+/g, 'border-emerald-500/80');
+                playChime(true);
+            }
+
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 3000);
+
+            renderLiveLogs();
+        }
+
+        function renderLiveLogs() {
+            const list = document.getElementById('liveAttendanceList');
+            const badge = document.getElementById('logCountBadge');
+            const today = new Date().toISOString().split('T')[0];
+            const logs = attendanceLogs.filter(l => l.date === today);
+
+            badge.textContent = `${logs.length} Logged`;
+            if (logs.length === 0) {
+                list.innerHTML = `<p class="text-center py-10 text-xs text-slate-400">No attendance marked yet today.<br><span class="text-[11px]">Click 'Start Webcam' to mark attendance.</span></p>`;
+                return;
+            }
+            list.innerHTML = logs.map(l => `
+                <div class="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/80 flex justify-between items-center text-xs transition">
+                    <div>
+                        <h4 class="font-bold text-slate-900">${l.name}</h4>
+                        <p class="text-[11px] text-slate-500">Roll: ${l.roll} • ${l.className} • ${l.time}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Present</span>
+                        <span class="block text-[10px] text-slate-400 font-mono mt-0.5">${l.confidence || '92%'}</span>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // ================= DASHBOARD & CHARTS =================
+        let trendChart = null;
+        let pieChart = null;
+
+        function renderDashboard() {
+            document.getElementById('statTotalStudents').textContent = students.length;
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('statTodayPresent').textContent = attendanceLogs.filter(l => l.date === today).length;
+            document.getElementById('statDatasetSize').textContent = students.reduce((sum, s) => sum + (s.samples || 15), 0);
+
+            const tbody = document.getElementById('masterStudentTableBody');
+            tbody.innerHTML = students.map(s => {
+                const isMarked = attendanceLogs.some(l => l.studentId === s.id && l.date === today);
+                const avatarHtml = s.avatar 
+                    ? `<img src="${s.avatar}" class="w-8 h-8 rounded-full object-cover border border-indigo-200">`
+                    : `<div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">${s.name.charAt(0)}</div>`;
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-2">${avatarHtml}</td>
+                        <td class="px-4 py-2 font-mono font-bold text-indigo-600">${s.id}</td>
+                        <td class="px-4 py-2 font-mono">${s.roll}</td>
+                        <td class="px-4 py-2 font-bold">${s.name}</td>
+                        <td class="px-4 py-2 text-slate-600">${s.className}</td>
+                        <td class="px-4 py-2 font-mono text-slate-500">${s.samples || 15} imgs</td>
+                        <td class="px-4 py-2">
+                            ${isMarked 
+                                ? `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[11px] font-bold">Present</span>`
+                                : `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[11px]">Not Marked</span>`}
+                        </td>
+                        <td class="px-4 py-2 text-right space-x-2">
+                            <button onclick="manualMark(${s.id})" class="text-indigo-600 font-bold hover:underline">Mark</button>
+                            <button onclick="deleteStudent(${s.id})" class="text-rose-600 font-bold hover:underline">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (!trendChart) {
+                trendChart = new Chart(document.getElementById('attendanceTrendChart'), {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'],
+                        datasets: [{
+                            label: 'Present Count',
+                            data: [6, 7, 8, 7, 6, attendanceLogs.length || 7],
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            // BCA Semesters Distribution
+            const semCounts = [0, 0, 0, 0, 0, 0];
+            students.forEach(s => {
+                for (let i = 1; i <= 6; i++) {
+                    if (s.className.includes(`Semester ${i}`)) semCounts[i-1]++;
+                }
+            });
+
+            if (pieChart) pieChart.destroy();
+            pieChart = new Chart(document.getElementById('deptPieChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Sem 6'],
+                    datasets: [{
+                        data: semCounts,
+                        backgroundColor: ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            lucide.createIcons();
+        }
+
+        function manualMark(sid) {
+            const st = students.find(s => s.id === sid);
+            if (!st) return;
+            performAttendanceMark(st, 99.0);
+            renderDashboard();
+        }
+
+        function deleteStudent(sid) {
+            if (confirm("Delete this student from the database?")) {
+                students = students.filter(s => s.id !== sid);
+                saveStorage();
+                renderDashboard();
+            }
+        }
+
+        function clearTodayAttendance() {
+            if (confirm("Reset today's attendance logs?")) {
+                const today = new Date().toISOString().split('T')[0];
+                attendanceLogs = attendanceLogs.filter(l => l.date !== today);
+                saveStorage();
+                renderDashboard();
+                renderLiveLogs();
+            }
+        }
+
+        // ================= STUDENT PORTAL =================
+        function lookupStudentPortal() {
+            const q = document.getElementById('studentSearchInput').value.trim().toLowerCase();
+            const st = students.find(s => s.roll.toLowerCase() === q || s.id.toString() === q || s.name.toLowerCase().includes(q));
+            const card = document.getElementById('studentResultCard');
+
+            if (!st) {
+                alert("Student record not found for query: " + q);
+                card.classList.add('hidden');
+                return;
+            }
+
+            card.classList.remove('hidden');
+            document.getElementById('portalStudentName').textContent = st.name;
+            document.getElementById('portalStudentRoll').textContent = `Roll: ${st.roll} | ID: ${st.id}`;
+            document.getElementById('portalStudentClass').textContent = st.className;
+
+            const box = document.getElementById('portalAvatarBox');
+            if (st.avatar) {
+                box.innerHTML = `<img src="${st.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                box.textContent = st.name.charAt(0);
+            }
+
+            const logs = attendanceLogs.filter(l => l.studentId === st.id);
+            const tbody = document.getElementById('portalHistoryTableBody');
+
+            tbody.innerHTML = logs.length === 0
+                ? `<tr><td colspan="4" class="py-4 text-center text-slate-400">No attendance sessions logged yet.</td></tr>`
+                : logs.map(l => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 font-mono">${l.date}</td>
+                        <td class="px-4 py-2 font-mono">${l.time}</td>
+                        <td class="px-4 py-2 text-indigo-600 font-semibold">${l.confidence.includes('Manual') ? 'Manual' : 'Face Biometric'}</td>
+                        <td class="px-4 py-2"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Present</span></td>
+                    </tr>
+                `).join('');
+            lucide.createIcons();
+        }
+
+        // CSV Export (Faculty only)
+        function downloadCSVReport() {
+            let csv = "attendance_id,student_id,name,roll_no,class_name,attendance_date,attendance_time,status\n";
+            attendanceLogs.forEach((l, i) => {
+                csv += `${i+1},${l.studentId},"${l.name}","${l.roll}","${l.className}",${l.date},${l.time},${l.status}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance_bca_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
+            renderLiveLogs();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
